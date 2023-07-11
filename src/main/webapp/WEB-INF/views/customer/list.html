@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List of customers</title>
+    <link rel="stylesheet" href="/assets/bootstrap/v-5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/assets/fontawesome/v-5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="/assets/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <nav class="navbar navbar-expand-lg bg-body-navbar">
+            <div class="container-fluid">
+                <h1 class="navbar-brand">List of customers</h1>
+                <div class="collapse navbar-collapse" id="navbarScroll">
+                    <div class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll"
+                         style="--bs-scroll-height: 100px;">
+                    </div>
+                    <form class="d-flex" role="search">
+                        <button type="button" class="btn btn-outline-light " id="btnHistoryTransfer">
+                            <i class=" fa fa-history" aria-hidden="true"></i>
+                            <span>Transfer Information</span>
+                        </button>
+                        <button class="btn btn-outline-light" type="button" id="btnShowCreateModal">Create</button>
+                    </form>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <table class="table table-hover" id="tbCustomer">
+        <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Full Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Phone</th>
+            <th scope="col">Balance</th>
+            <th scope="col">Address</th>
+            <th class="text-center" scope="col-5">Action</th>
+        </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+</div>
+
+<th:block th:replace="/customer/modalCreate"/>
+<!-- Modal update -->
+<th:block th:replace="/customer/modalEdit"/>
+<!-- Modal deposit -->
+<th:block th:replace="/customer/modalDeposit"/>
+<!-- Modal withdraw -->
+<th:block th:replace="/customer/modalWithdraw"/>
+<!-- Modal Transfer -->
+<th:block th:replace="/customer/modalTransfer"/>
+<!-- Modal History Transfer -->
+<th:block th:replace="/customer/modalHitoryTransfer"/>
+
+<script src="/assets/jquery/jquery-3.6.4.min.js"></script>
+<script src="/assets/bootstrap/v-5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/jquery/jquery.validate.min.js"></script>
+
+<script src="/assets/sweetalert2/sweetalert2.all.min.js"></script>
+
+<script src="/assets/js/bootstrap/app.js"></script>
+
+<script>
+    const page = {
+        url: {
+            getAllCustomers: App.API_CUSTOMER,
+            getCustomerById: App.API_CUSTOMER,
+            createCustomer: App.API_CUSTOMER + "/create",
+            updateCustomer: App.API_CUSTOMER + "/edit",
+            incrementBalance: App.API_CUSTOMER,
+            deposit: App.API_DEPOSIT
+        },
+        elements: {},
+        loadData: {},
+        commands: {},
+        dialogs: {
+            elements: {},
+            commands: {}
+        },
+        initializeControlEvent: {}
+    }
+
+
+    page.elements.btnShowCreateModal = $('#btnShowCreateModal');
+    page.elements.tbCustomerBody = $('#tbCustomer tbody');
+
+    page.dialogs.elements.errorAreaCreate = $('#modalCreate .error-area');
+    page.dialogs.elements.modalCreate = $('#modalCreate');
+    page.dialogs.elements.frmCreate = $('#frmCreate');
+    page.dialogs.elements.fullNameCre = $('#fullNameCre');
+    page.dialogs.elements.emailCre = $('#emailCre');
+    page.dialogs.elements.phoneCre = $('#phoneCre');
+    page.dialogs.elements.addressCre = $('#addressCre');
+    page.dialogs.elements.btnCreate = $('#btnCreate');
+
+    page.dialogs.elements.errorAreaUpdate = $('#modalUpdate .error-area');
+    page.dialogs.elements.frmUpdate = $('#frmUpdate');
+    page.dialogs.elements.modalUpdate = $('#modalUpdate');
+    page.dialogs.elements.fullNameUp = $('#fullNameUp');
+    page.dialogs.elements.emailUp = $('#emailUp');
+    page.dialogs.elements.phoneUp = $('#phoneUp');
+    page.dialogs.elements.addressUp = $('#addressUp');
+    page.dialogs.elements.btnUpdate = $('#btnUpdate');
+
+
+    let customer = null;
+    let customerId = 0;
+    page.commands.renderCustomer = (obj) => {
+        return `
+                    <tr id="tr_${obj.id}">
+                        <th scope="row">${obj.id}</th>
+                        <td>${obj.fullName}</td>
+                        <td>${obj.email}</td>
+                        <td>${obj.phone}</td>
+                        <td>${obj.balance}</td>
+                        <td>${obj.address}</td>
+                        <td class="text-center">
+                            <button class="btn btn-outline-secondary edit"
+                                data-id="${obj.id}"
+                            >
+                                <i class="fa fa-pencil-alt"></i>
+                            </button>
+                            <button class="btn btn-outline-success deposit"
+                                data-id="${obj.id}"
+                            >
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn btn-outline-warning withdraw"
+                                data-id="${obj.id}"
+                            >
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button class="btn btn-outline-primary transfer"
+                                data-id="${obj.id}"
+                            >
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                            <button class="btn btn-outline-danger delete"
+                                data-id="${obj.id}"
+                            >
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `
+    }
+
+    // hiển thị danh sách
+    page.commands.getAllCustomers = () => {
+        page.elements.tbCustomerBody.empty();
+        $.ajax({
+            headers: {
+                'accept': 'application/json',
+                'content-type': 'application/json'
+            },
+            type: 'GET',
+            url: page.url.getAllCustomers
+        })
+            .done((data) => {
+                console.log(data)
+                data.forEach(item => {
+                    const str = page.commands.renderCustomer(item);
+                    page.elements.tbCustomerBody.prepend(str);
+                });
+
+            })
+            .fail((error) => {
+                console.log(error);
+            })
+    }
+    // thêm
+    page.dialogs.commands.create = () => {
+        const fullName = page.dialogs.elements.fullNameCre.val()
+        const email = page.dialogs.elements.emailCre.val()
+        const phone = page.dialogs.elements.phoneCre.val()
+        const address = page.dialogs.elements.addressCre.val()
+        const balance = +0
+        const deleted = +0
+
+        const obj = {
+            fullName,
+            email,
+            phone,
+            balance,
+            address,
+            deleted
+        }
+
+
+        $.ajax({
+            headers: {
+                'accept': 'application/json',
+                'content-type': 'application/json'
+            },
+            type: 'POST',
+            url: page.url.createCustomer,
+            data: JSON.stringify(obj)
+        })
+            .done((data) => {
+                const str = page.commands.renderCustomer(data)
+
+                page.elements.tbCustomerBody.prepend(str)
+
+                page.dialogs.elements.modalCreate.modal('hide')
+                App.showSuccessAlert('Đã thêm tài khoản')
+
+            })
+            .fail((jqXHR) => {
+
+                const responseJSON = jqXHR.responseJSON;
+
+                page.dialogs.elements.errorAreaCreate.empty();
+                let str = '';
+
+                $.each(responseJSON, (k, v) => {
+                    str += `<label for="${k}Cre">${v}</label>`
+                })
+
+                page.dialogs.elements.errorAreaCreate.append(str).removeClass('hide').addClass('show');
+
+                console.log(jqXHR);
+            })
+
+
+    }
+
+    // lấy id
+    page.commands.getCustomerById = (id) => {
+        return $.ajax({
+            url: page.url.getCustomerById + '/' + id,
+        })
+    }
+
+    // mở Edit
+    page.commands.handleAddEventShowModalUpdate = (customerId) => {
+        page.commands.getCustomerById(customerId).then((data) => {
+            page.dialogs.elements.fullNameUp.val(data.fullName);
+            page.dialogs.elements.emailUp.val(data.email);
+            page.dialogs.elements.phoneUp.val(data.phone);
+            page.dialogs.elements.addressUp.val(data.address);
+
+            page.dialogs.elements.modalUpdate.modal('show');
+        })
+            .catch((error) => {
+                console.log(error)
+            })
+    }
+
+    // chạy Edit
+    page.dialogs.commands.update = () => {
+        let fullName = page.dialogs.elements.fullNameUp.val()
+        let email = page.dialogs.elements.emailUp.val()
+        let phone = page.dialogs.elements.phoneUp.val()
+        let address = page.dialogs.elements.addressUp.val()
+
+        const customer = {
+            fullName,
+            email,
+            phone,
+            address,
+        }
+
+        $.ajax({
+            headers: {
+                'accept': 'application/json',
+                'content-type': 'application/json'
+            },
+            type: 'PATCH',
+            url: page.url.updateCustomer + '/' + customerId,
+            data: JSON.stringify(customer)
+        })
+            .done((data) => {
+                const str = page.commands.renderCustomer(data)
+                $('#tr_' + customerId).replaceWith(str)
+                page.dialogs.elements.modalUpdate.modal('hide')
+                App.showSuccessAlert('sửa tài khoản thành công')
+
+
+            })
+            .fail((jqXHR) => {
+                const responseJSON = jqXHR.responseJSON;
+
+                page.dialogs.elements.errorAreaUpdate.empty();
+                let str = '';
+
+                $.each(responseJSON, (k, v) => {
+                    str += `<label for="${k}Up">${v}</label>`
+                })
+
+                page.dialogs.elements.errorAreaUpdate.append(str).removeClass('hide').addClass('show');
+
+                console.log(jqXHR);
+            })
+    }
+
+    page.dialogs.elements.frmCreate.validate({
+        rules: {
+            fullNameCre: {
+                required: true
+            },
+            emailCre: {
+                required: true
+            }
+        },
+        messages: {
+            fullNameCre: {
+                required: 'tên không cho phép rỗng,'
+            },
+            emailCre: {
+                required: 'email là bắt buộc'
+            }
+        },
+        errorLabelContainer: "#modalCreate .error-area",
+        errorPlacement: function (error, element) {
+            error.appendTo("#modalCreate .error-area");
+        },
+        showErrors: function (errorMap, errorList) {
+            if (this.numberOfInvalids() > 0) {
+                page.dialogs.elements.errorAreaCreate.removeClass("hide").addClass("show");
+            } else {
+                page.dialogs.elements.errorAreaCreate.removeClass("show").addClass("hide").empty();
+                $("#frmCreate input.error").removeClass("error");
+            }
+            this.defaultShowErrors();
+        },
+        submitHandler: function () {
+            page.dialogs.commands.create();
+        }
+    })
+
+    page.dialogs.elements.frmUpdate.validate({
+        rules: {
+            fullNameUp: {
+                required: true
+            },
+            emailUp: {
+                required: true
+            }
+        },
+        messages: {
+            fullNameUp: {
+                required: 'tên không cho phép rỗng,'
+            },
+            emailUp: {
+                required: 'email là bắt buộc'
+            }
+        },
+        errorLabelContainer: "#modalUpdate .error-area",
+        errorPlacement: function (error, element) {
+            error.appendTo("#modalUpdate .error-area");
+        },
+        showErrors: function (errorMap, errorList) {
+            if (this.numberOfInvalids() > 0) {
+                page.dialogs.elements.errorAreaUpdate.removeClass("hide").addClass("show");
+            } else {
+                page.dialogs.elements.errorAreaUpdate.removeClass("show").addClass("hide").empty();
+                $("#frmUpdate input.error").removeClass("error");
+            }
+            this.defaultShowErrors();
+        },
+        submitHandler: function () {
+            page.dialogs.commands.update();
+        }
+    })
+
+    page.initializeControlEvent = () => {
+        page.elements.btnShowCreateModal.on('click', () => {
+            page.dialogs.elements.modalCreate.modal('show');
+        })
+        page.dialogs.elements.btnCreate.on('click', () => {
+            page.dialogs.elements.frmCreate.trigger("submit");
+        })
+        page.dialogs.commands.closeModalCreate = () => {
+            page.dialogs.elements.frmCreate[0].reset();
+        }
+        page.dialogs.elements.modalCreate.on("hidden.bs.modal", function () {
+            page.dialogs.commands.closeModalCreate();
+        })
+
+        page.elements.tbCustomerBody.on('click', '.edit', function () {
+            customerId = $(this).data('id');
+            page.commands.handleAddEventShowModalUpdate(customerId);
+        })
+        page.dialogs.elements.btnUpdate.on('click', () => {
+            page.dialogs.elements.frmUpdate.trigger("submit");
+        })
+    }
+
+    page.loadData = () => {
+        page.commands.getAllCustomers();
+
+    }
+
+    $(() => {
+        page.loadData();
+
+        page.initializeControlEvent();
+    })
+</script>
+</body>
+</html>
